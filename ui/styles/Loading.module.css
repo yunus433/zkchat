@@ -1,0 +1,13 @@
+.allWrapper {
+  width: 100vw;
+  height: 100vh;
+  background-color: var(--background-color);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.loadingLogo {
+  width: 300px;
+  height: auto;
+}

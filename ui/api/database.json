@@ -1,0 +1,15 @@
+{
+  "chats": [
+    {
+      "address": "",
+      "users": [],
+      "name": "Chat 1",
+      "lastMessage": {
+        "username": "Username",
+        "text": "Hello!! kajkdlfas dfahsdf asdfhas dfa sdfjasdhfkjhk",
+        "time": 1671102833972
+      }
+    }
+  ],
+  "messages": {}
+}

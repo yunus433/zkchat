@@ -1,102 +1,315 @@
+import React, { useEffect, useState } from "react";
 
-import Head from 'next/head';
-import Image from 'next/image';
-import styles from '../styles/Home.module.css';
-import { useEffect, useState } from 'react';
-import type { Add } from '../../contracts/src/';
 import {
-  Mina,
-  isReady,
   PublicKey,
-  fetchAccount,
-} from 'snarkyjs';
+  PrivateKey,
+  CircuitString,
+  Field
+} from 'snarkyjs'
 
-export default function Home() {
+import { User }  from '../../contracts/build/src/User.js';
+
+import { requestToDatabase } from '../api/server';
+
+import Loading from './loading.page';
+import Dashboard from './dashboard.page';
+
+import ZkappWorkerClient from './zkappWorkerClient';
+
+const DEFAULT_USERNAME = "DEFAULT_USERNAME";
+
+let transactionFee = 0;
+
+interface Chat {
+  address: string,
+  users: {
+    publicKey: string,
+    hash: string
+  }[],
+  name: string,
+  lastMessage: null | {
+    username: string,
+    text: string,
+    time: number
+  }
+};
+
+export default function App() {
+  let [state, setState] = useState({
+    zkappWorkerClient: null as null | ZkappWorkerClient,
+    hasBeenSetup: false,
+    accountExists: false,
+    privateKey: null as null | PrivateKey,
+    publicKey: null as null | PublicKey,
+    zkappPublicKey: null as null | PublicKey,
+    creatingTransaction: false,
+    activeChatAddress: null as null | string,
+    activeChatUsername: null as null | string,
+    chats: [] as Array<Chat>,
+    messages: [
+      {
+        username: "Username",
+        text: "Hello!!",
+        time: (new Date).getTime()
+      },
+      {
+        username: "Username 2",
+        text: "Hi :DD",
+        time: (new Date).getTime() - (2 * 60 * 60 * 1000)
+      },
+      {
+        username: "Username 2",
+        text: "How are u guys??",
+        time: (new Date).getTime() - (2 * 60 * 60 * 1000)
+      },
+      {
+        username: "Username 1",
+        text: "Hello everyone",
+        time: (new Date).getTime() - (5 * 60 * 60 * 1000)
+      },
+      {
+        username: "Username 1",
+        text: "I am great thanks, how about you?",
+        time: (new Date).getTime() - (36 * 60 * 60 * 1000)
+      },
+      {
+        username: "Username 3",
+        text: "Did you handle the problems in the ZkChat? cause the last time I have checkd there were some issues with the UI",
+        time: (new Date).getTime() - (72 * 60 * 60 * 1000)
+      }
+    ] as Array<{
+      username: string,
+      text: string,
+      time: number
+    }>
+  });
+
   useEffect(() => {
     (async () => {
-      await isReady;
-      const { Add } = await import('../../contracts/build/src/');
+      if (!state.hasBeenSetup) {
+        const zkappWorkerClient = new ZkappWorkerClient();
+        await zkappWorkerClient.loadSnarkyJS();
+        await zkappWorkerClient.setActiveInstanceToBerkeley();
 
-      // Update this to use the address (public key) for your zkApp account
-      // To try it out, you can try this address for an example "Add" smart contract that we've deployed to 
-      // Berkeley Testnet B62qisn669bZqsh8yMWkNyCA7RvjrL6gfdr3TQxymDHNhTc97xE5kNV
-      const zkAppAddress = '';
-      // This should be removed once the zkAppAddress is updated.
-      if (!zkAppAddress) {
-        console.error(
-          'The following error is caused because the zkAppAddress has an empty string as the public key. Update the zkAppAddress with the public key for your zkApp account, or try this address for an example "Add" smart contract that we deployed to Berkeley Testnet: B62qqkb7hD1We6gEfrcqosKt9C398VLp1WXeTo1i9boPoqF7B1LxHg4'
-        );
+        if (localStorage.privateKey == null)
+          localStorage.privateKey = PrivateKey.random().toBase58();
+
+        let privateKey = PrivateKey.fromBase58(localStorage.privateKey);
+        let publicKey = privateKey.toPublicKey();
+
+        const res = await zkappWorkerClient.fetchAccount({ publicKey: publicKey! });
+        const accountExists = res.error == null;
+
+        await zkappWorkerClient.loadContract();
+        await zkappWorkerClient.compileContract();
+
+        requestToDatabase({
+          type: 'get_chats',
+          body: {
+            user_public_key: publicKey!.toBase58(),
+            new_chat: null,
+            chat_id: null,
+            new_message: null
+          }
+        }, (err: string, chats: Chat[]) => {
+          if (err) return alert(err);
+    
+          setState({
+            ...state,
+            zkappWorkerClient,
+            hasBeenSetup: true,
+            publicKey,
+            privateKey,
+            accountExists,
+            chats
+          });
+        });
       }
-
-      const zkApp = new Add(PublicKey.fromBase58(zkAppAddress));
-      
     })();
   }, []);
 
+  useEffect(() => {
+    (async () => {
+      if (state.hasBeenSetup && !state.accountExists) {
+        for (;;) {
+          console.log('checking if account exists...');
+          const res = await state.zkappWorkerClient!.fetchAccount({ publicKey: state.publicKey! })
+          const accountExists = res.error == null;
+          if (accountExists) {
+            break;
+          }
+          await new Promise((resolve) => setTimeout(resolve, 5000));
+        }
+        setState({ ...state, accountExists: true });
+       }
+     })();
+  }, [state.hasBeenSetup]);
+
+  async function createChat(data: {
+    chatName: string,
+    users: PublicKey[]
+  }, callback: Function)  {
+    if (state.creatingTransaction)
+      return callback('transaction_on_process');
+
+    setState({ ...state, creatingTransaction: true });
+
+    const zkappWorkerClient = state.zkappWorkerClient;
+    const publicKey = state.publicKey;
+    const privateKey = state.privateKey;
+    
+    const newContractPrivateKey = PrivateKey.random();
+    const newContractPublicKey = newContractPrivateKey.toPublicKey();
+  
+    await zkappWorkerClient!.initZkappInstance(newContractPublicKey);
+    await zkappWorkerClient!.fetchAccount({ publicKey: newContractPublicKey });
+
+    await zkappWorkerClient!.createStartChatTransaction(
+      privateKey!,
+      transactionFee,
+      data.chatName,
+      data.users
+    );
+
+    await zkappWorkerClient!.proveStartChatTransaction();
+    const transactionHash = await zkappWorkerClient!.sendStartChatTransaction();
+
+    requestToDatabase({
+      type: 'post_chat',
+      body: {
+        user_public_key: publicKey!.toBase58(),
+        new_chat: {
+          address: newContractPublicKey.toBase58(),
+          users: data.users.map(each => {
+            return {
+              publicKey: each.toBase58(),
+              hash: (new User(each, CircuitString.fromString(DEFAULT_USERNAME)).hash()).toString()
+            }
+          }),
+          name: "Default Chat Name",
+          lastMessage: null
+        },
+        chat_id: null,
+        new_message: null
+      }
+    }, (err: string) => {
+      if (err) return alert(err);
+
+      setState({
+        ...state,
+        creatingTransaction: false,
+        chats: state.chats.concat({
+          address: newContractPublicKey.toBase58(),
+          users: data.users.map(each => {
+            return {
+              publicKey: each.toBase58(),
+              hash: (new User(each, CircuitString.fromString(DEFAULT_USERNAME)).hash()).toString()
+            }
+          }),
+          name: "Default Chat Name",
+          lastMessage: null
+        })
+      });
+    });
+  };
+
+  async function setUsername(data: {
+    chatPublicKey: string,
+    username: string
+  }, callback: Function)  {
+    if (state.creatingTransaction)
+      return callback('transaction_on_process');
+
+    setState({ ...state, creatingTransaction: true });
+
+    const zkappWorkerClient = state.zkappWorkerClient;
+    const publicKey = state.publicKey;
+    const privateKey = state.privateKey;
+    
+    const newContractPrivateKey = PrivateKey.random();
+    const newContractPublicKey = newContractPrivateKey.toPublicKey();
+  
+    await zkappWorkerClient!.initZkappInstance(newContractPublicKey);
+    await zkappWorkerClient!.fetchAccount({ publicKey: newContractPublicKey });
+
+    const chat = state.chats.find(each => each.address == data.chatPublicKey);
+
+    if (!chat) return callback('bad_request');
+
+    const index = chat.users.findIndex(each => each.publicKey == state.publicKey!.toBase58())
+
+    if (index < 0) return callback('bad_request');
+
+    await zkappWorkerClient!.createSetUsernameTransaction(
+      privateKey!,
+      transactionFee,
+      data.username,
+      chat.users.map(each => Field(each.hash)),
+      index
+    );
+
+    await zkappWorkerClient!.proveStartChatTransaction();
+    const transactionHash = await zkappWorkerClient!.sendStartChatTransaction();
+
+    // requestToDatabase({
+    //   type: 'post_chat',
+    //   body: {
+    //     user_public_key: publicKey!.toBase58(),
+    //     new_chat: {
+    //       address: newContractPublicKey.toBase58(),
+    //       users: data.users.map(each => {
+    //         return {
+    //           publicKey: each.toBase58(),
+    //           hash: (new User(each, CircuitString.fromString(DEFAULT_USERNAME)).hash()).toString()
+    //         }
+    //       }),
+    //       name: "Default Chat Name",
+    //       lastMessage: null
+    //     },
+    //     chat_id: null,
+    //     new_message: null
+    //   }
+    // }, (err: string) => {
+    //   if (err) return alert(err);
+
+    //   setState({
+    //     ...state,
+    //     creatingTransaction: false,
+    //     chats: state.chats.concat({
+    //       address: newContractPublicKey.toBase58(),
+    //       users: data.users.map(each => each.toBase58()),
+    //       name: "Default Chat Name",
+    //       lastMessage: null
+    //     })
+    //   });
+    // });
+  };
+
+  let setupText = state.hasBeenSetup ? 'SnarkyJS Ready' : 'Setting up SnarkyJS...';
+  let setup = <div >{setupText}</div>
+
+  let accountDoesNotExist;
+  if (state.hasBeenSetup && !state.accountExists) {
+    const faucetLink = "https://faucet.minaprotocol.com/?address=" + state.publicKey!.toBase58();
+    accountDoesNotExist = <div>
+      Account does not exist. Please visit the faucet to fund this account
+      <a href={faucetLink} target="_blank" rel="noreferrer"> [Link] </a>
+    </div>
+  }
+
   return (
-    <div className={styles.container}>
-      <Head>
-        <title>Create Next App</title>
-        <meta name="description" content="Generated by create next app" />
-        <link rel="icon" href="/favicon.ico" />
-      </Head>
-
-      <main className={styles.main}>
-        <h1 className={styles.title}>
-          Welcome to <a href="https://nextjs.org">Next.js!</a>
-        </h1>
-
-        <p className={styles.description}>
-          Get started by editing{' '}
-          <code className={styles.code}>pages/index.tsx</code>
-        </p>
-
-        <div className={styles.grid}>
-          <a href="https://nextjs.org/docs" className={styles.card}>
-            <h2>Documentation &rarr;</h2>
-            <p>Find in-depth information about Next.js features and API.</p>
-          </a>
-
-          <a href="https://nextjs.org/learn" className={styles.card}>
-            <h2>Learn &rarr;</h2>
-            <p>Learn about Next.js in an interactive course with quizzes!</p>
-          </a>
-
-          <a
-            href="https://github.com/vercel/next.js/tree/canary/examples"
-            className={styles.card}
-          >
-            <h2>Examples &rarr;</h2>
-            <p>Discover and deploy boilerplate example Next.js projects.</p>
-          </a>
-
-          <a
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=default-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-            className={styles.card}
-          >
-            <h2>Deploy &rarr;</h2>
-            <p>
-              Instantly deploy your Next.js site to a public URL with Vercel.
-            </p>
-          </a>
-        </div>
-      </main>
-
-      <footer className={styles.footer}>
-        <a
-          href="https://vercel.com?utm_source=create-next-app&utm_medium=default-template&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Powered by{' '}
-          <span className={styles.logo}>
-            <Image src="/vercel.svg" alt="Vercel Logo" width={72} height={16} />
-          </span>
-        </a>
-      </footer>
+    <div>
+      { Loading({
+        isReady: !state.hasBeenSetup
+      }) }
+      { state.hasBeenSetup && !state.accountExists ? accountDoesNotExist : '' }
+      { Dashboard({
+        isReady: state.hasBeenSetup && state.accountExists,
+        chats: state.chats,
+        messages: state.messages,
+        username: state.activeChatUsername!,
+        createChat
+      }) }
     </div>
   );
 }
-

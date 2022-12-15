@@ -1,3 +1,25 @@
+:root {
+  --background-color: rgb(6, 6, 22);
+  --second-background-color: rgb(15, 15, 33);
+  --main-color: rgb(107, 92, 173);
+  --second-color: rgb(90, 178, 173);
+  --text-color: rgb(236, 236, 236);
+  --placeholder-color: rgb(148, 148, 148);
+  --border-color: rgb(212, 212, 212);
+  --hover-color: rgb(0, 0, 15);
+
+  --navbar-width: 300px;
+  --each-navbar-chat-height: 80px;
+  --navbar-button-width: 110px;
+  --navbar-button-height: 35px;
+
+  --max-message-width: 600px;
+  --min-message-width: 150px;
+
+  --send-messages-height: 70px;
+  --send-message-button-width: 110px;
+}
+
 html,
 body {
   padding: 0;
