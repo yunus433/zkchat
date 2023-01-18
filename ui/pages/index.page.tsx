@@ -2,12 +2,8 @@ import React, { useEffect, useState } from "react";
 
 import {
   PublicKey,
-  PrivateKey,
-  CircuitString,
-  Field
+  PrivateKey
 } from 'snarkyjs'
-
-import { User }  from '../../contracts/build/src/User.js';
 
 import { requestToDatabase } from '../api/server';
 
@@ -44,28 +40,22 @@ export default function App() {
     zkappPublicKey: null as null | PublicKey,
     creatingTransaction: false,
     activeChatAddress: null as null | string,
-    activeChatUsername: null as null | string,
-    chats: [] as Array<Chat>,
+    username: "Username 2" as null | string,
+    chats: [{
+      "address": "",
+      "users": [],
+      "name": "Chat 1",
+      "lastMessage": {
+        "username": "Username",
+        "text": "Hello!!",
+        "time": 1671102833972
+      }
+    }] as Array<Chat>,
     messages: [
       {
-        username: "Username",
-        text: "Hello!!",
-        time: (new Date).getTime()
-      },
-      {
-        username: "Username 2",
-        text: "Hi :DD",
-        time: (new Date).getTime() - (2 * 60 * 60 * 1000)
-      },
-      {
-        username: "Username 2",
-        text: "How are u guys??",
-        time: (new Date).getTime() - (2 * 60 * 60 * 1000)
-      },
-      {
-        username: "Username 1",
-        text: "Hello everyone",
-        time: (new Date).getTime() - (5 * 60 * 60 * 1000)
+        username: "Username 3",
+        text: "Did you handle the problems in the ZkChat? cause the last time I have checkd there were some issues with the UI",
+        time: (new Date).getTime() - (72 * 60 * 60 * 1000)
       },
       {
         username: "Username 1",
@@ -73,10 +63,25 @@ export default function App() {
         time: (new Date).getTime() - (36 * 60 * 60 * 1000)
       },
       {
-        username: "Username 3",
-        text: "Did you handle the problems in the ZkChat? cause the last time I have checkd there were some issues with the UI",
-        time: (new Date).getTime() - (72 * 60 * 60 * 1000)
-      }
+        username: "Username 1",
+        text: "Hello everyone",
+        time: (new Date).getTime() - (5 * 60 * 60 * 1000)
+      },
+      {
+        username: "Username 2",
+        text: "How are u guys??",
+        time: (new Date).getTime() - (2 * 60 * 60 * 1000)
+      },
+      {
+        username: "Username 2",
+        text: "Hi :DD",
+        time: (new Date).getTime() - (2 * 60 * 60 * 1000)
+      },
+      {
+        username: "Username",
+        text: "Hello!!",
+        time: (new Date).getTime()
+      },
     ] as Array<{
       username: string,
       text: string,
@@ -113,7 +118,7 @@ export default function App() {
           }
         }, (err: string, chats: Chat[]) => {
           if (err) return alert(err);
-    
+
           setState({
             ...state,
             zkappWorkerClient,
@@ -149,107 +154,30 @@ export default function App() {
     chatName: string,
     users: PublicKey[]
   }, callback: Function)  {
-    if (state.creatingTransaction)
-      return callback('transaction_on_process');
+    // if (state.creatingTransaction)
+    //   return callback('transaction_on_process');
 
-    setState({ ...state, creatingTransaction: true });
+    // setState({ ...state, creatingTransaction: true });
 
-    const zkappWorkerClient = state.zkappWorkerClient;
-    const publicKey = state.publicKey;
-    const privateKey = state.privateKey;
+    // const zkappWorkerClient = state.zkappWorkerClient;
+    // const publicKey = state.publicKey;
+    // const privateKey = state.privateKey;
     
-    const newContractPrivateKey = PrivateKey.random();
-    const newContractPublicKey = newContractPrivateKey.toPublicKey();
+    // const newContractPrivateKey = PrivateKey.random();
+    // const newContractPublicKey = newContractPrivateKey.toPublicKey();
   
-    await zkappWorkerClient!.initZkappInstance(newContractPublicKey);
-    await zkappWorkerClient!.fetchAccount({ publicKey: newContractPublicKey });
+    // await zkappWorkerClient!.initZkappInstance(newContractPublicKey);
+    // await zkappWorkerClient!.fetchAccount({ publicKey: newContractPublicKey });
 
-    await zkappWorkerClient!.createStartChatTransaction(
-      privateKey!,
-      transactionFee,
-      data.chatName,
-      data.users
-    );
+    // await zkappWorkerClient!.createStartChatTransaction(
+    //   privateKey!,
+    //   transactionFee,
+    //   data.chatName,
+    //   data.users
+    // );
 
-    await zkappWorkerClient!.proveStartChatTransaction();
-    const transactionHash = await zkappWorkerClient!.sendStartChatTransaction();
-
-    requestToDatabase({
-      type: 'post_chat',
-      body: {
-        user_public_key: publicKey!.toBase58(),
-        new_chat: {
-          address: newContractPublicKey.toBase58(),
-          users: data.users.map(each => {
-            return {
-              publicKey: each.toBase58(),
-              hash: (new User(each, CircuitString.fromString(DEFAULT_USERNAME)).hash()).toString()
-            }
-          }),
-          name: "Default Chat Name",
-          lastMessage: null
-        },
-        chat_id: null,
-        new_message: null
-      }
-    }, (err: string) => {
-      if (err) return alert(err);
-
-      setState({
-        ...state,
-        creatingTransaction: false,
-        chats: state.chats.concat({
-          address: newContractPublicKey.toBase58(),
-          users: data.users.map(each => {
-            return {
-              publicKey: each.toBase58(),
-              hash: (new User(each, CircuitString.fromString(DEFAULT_USERNAME)).hash()).toString()
-            }
-          }),
-          name: "Default Chat Name",
-          lastMessage: null
-        })
-      });
-    });
-  };
-
-  async function setUsername(data: {
-    chatPublicKey: string,
-    username: string
-  }, callback: Function)  {
-    if (state.creatingTransaction)
-      return callback('transaction_on_process');
-
-    setState({ ...state, creatingTransaction: true });
-
-    const zkappWorkerClient = state.zkappWorkerClient;
-    const publicKey = state.publicKey;
-    const privateKey = state.privateKey;
-    
-    const newContractPrivateKey = PrivateKey.random();
-    const newContractPublicKey = newContractPrivateKey.toPublicKey();
-  
-    await zkappWorkerClient!.initZkappInstance(newContractPublicKey);
-    await zkappWorkerClient!.fetchAccount({ publicKey: newContractPublicKey });
-
-    const chat = state.chats.find(each => each.address == data.chatPublicKey);
-
-    if (!chat) return callback('bad_request');
-
-    const index = chat.users.findIndex(each => each.publicKey == state.publicKey!.toBase58())
-
-    if (index < 0) return callback('bad_request');
-
-    await zkappWorkerClient!.createSetUsernameTransaction(
-      privateKey!,
-      transactionFee,
-      data.username,
-      chat.users.map(each => Field(each.hash)),
-      index
-    );
-
-    await zkappWorkerClient!.proveStartChatTransaction();
-    const transactionHash = await zkappWorkerClient!.sendStartChatTransaction();
+    // await zkappWorkerClient!.proveStartChatTransaction();
+    // const transactionHash = await zkappWorkerClient!.sendStartChatTransaction();
 
     // requestToDatabase({
     //   type: 'post_chat',
@@ -277,13 +205,117 @@ export default function App() {
     //     creatingTransaction: false,
     //     chats: state.chats.concat({
     //       address: newContractPublicKey.toBase58(),
-    //       users: data.users.map(each => each.toBase58()),
+    //       users: data.users.map(each => {
+    //         return {
+    //           publicKey: each.toBase58(),
+    //           hash: (new User(each, CircuitString.fromString(DEFAULT_USERNAME)).hash()).toString()
+    //         }
+    //       }),
     //       name: "Default Chat Name",
     //       lastMessage: null
     //     })
     //   });
     // });
   };
+
+  // async function setUsername(data: {
+  //   chatPublicKey: string,
+  //   username: string
+  // }, callback: Function)  {
+  //   if (state.creatingTransaction)
+  //     return callback('transaction_on_process');
+
+  //   setState({ ...state, creatingTransaction: true });
+
+  //   const zkappWorkerClient = state.zkappWorkerClient;
+  //   const publicKey = state.publicKey;
+  //   const privateKey = state.privateKey;
+    
+  //   const newContractPrivateKey = PrivateKey.random();
+  //   const newContractPublicKey = newContractPrivateKey.toPublicKey();
+  
+  //   await zkappWorkerClient!.initZkappInstance(newContractPublicKey);
+  //   await zkappWorkerClient!.fetchAccount({ publicKey: newContractPublicKey });
+
+  //   const chat = state.chats.find(each => each.address == data.chatPublicKey);
+
+  //   if (!chat) return callback('bad_request');
+
+  //   const index = chat.users.findIndex(each => each.publicKey == state.publicKey!.toBase58())
+
+  //   if (index < 0) return callback('bad_request');
+
+  //   await zkappWorkerClient!.createSetUsernameTransaction(
+  //     privateKey!,
+  //     transactionFee,
+  //     data.username,
+  //     chat.users.map(each => Field(each.hash)),
+  //     index
+  //   );
+
+  //   await zkappWorkerClient!.proveStartChatTransaction();
+  //   const transactionHash = await zkappWorkerClient!.sendStartChatTransaction();
+
+  //   requestToDatabase({
+  //     type: 'update_chat',
+  //     body: {
+  //       user_public_key: publicKey!.toBase58(),
+  //       chat_id: chat.address,
+  //       new_chat: {
+  //         address: chat.address,
+  //         users: chat.users.map(each => {
+  //           if (each.publicKey == publicKey!.toBase58())
+  //             return {
+  //               publicKey: each.publicKey,
+  //               hash: (new User(publicKey!, CircuitString.fromString(data.username))).hash().toString()
+  //             };
+
+  //           return each;
+  //         }),
+  //         name: "Default Chat Name",
+  //         lastMessage: null
+  //       },
+  //       new_message: null
+  //     }
+  //   }, (err: string) => {
+  //     if (err) return alert(err);
+
+  //     setState({
+  //       ...state,
+  //       creatingTransaction: false,
+  //       chats: state.chats.map(each => {
+  //         if (each.address == data.chatPublicKey)
+  //           each.users = each.users.map(each => {
+  //             if (each.publicKey == publicKey!.toBase58())
+  //               return {
+  //                 publicKey: each.publicKey,
+  //                 hash: (new User(publicKey!, CircuitString.fromString(data.username))).hash().toString()
+  //               };
+    
+  //             return each;
+  //           });
+
+  //         return each;
+  //       })
+  //     });
+  //   });
+  // };
+
+  // function saveUsername(data: {
+  //   username: string
+  // }) {
+  //   setState({
+  //     ...state,
+  //     username: data.username
+  //   });
+  // };
+
+  // async function getMessages(data: {
+  //   chatPublicKey: string,
+  //   username: string
+  // }) {
+    
+  // };
 
   let setupText = state.hasBeenSetup ? 'SnarkyJS Ready' : 'Setting up SnarkyJS...';
   let setup = <div >{setupText}</div>
@@ -306,8 +338,18 @@ export default function App() {
       { Dashboard({
         isReady: state.hasBeenSetup && state.accountExists,
         chats: state.chats,
+        chat: {
+          "address": "",
+          "users": [],
+          "name": "Chat 1",
+          "lastMessage": {
+            "username": "Username",
+            "text": "Hello!! kajkdlfas dfahsdf asdfhas dfa sdfjasdhfkjhk",
+            "time": 1671102833972
+          }
+        },
         messages: state.messages,
-        username: state.activeChatUsername!,
+        username: state.username!,
         createChat
       }) }
     </div>

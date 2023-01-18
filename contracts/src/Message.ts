@@ -8,7 +8,7 @@ import {
 } from 'snarkyjs';
 
 export class Message extends CircuitValue {
-  @prop username: CircuitString;
+  @prop username: Field;
   @prop time: UInt64;
   @prop text: CircuitString;
 
@@ -19,7 +19,7 @@ export class Message extends CircuitValue {
   ) {
     super(username, time, text);
 
-    this.username = username;
+    this.username = Poseidon.hash(username.toFields());
     this.time = time;
     this.text = text;
   }

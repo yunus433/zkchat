@@ -20,7 +20,7 @@ import { Message } from './Message';
 import { User } from './User';
 
 const DEFAULT_USERNAME = "DEFAULT_USERNAME";
-const MAX_MERKLE_TREE_HEIGHT = 32; // Max 2^32 users are allowed in chat
+const MAX_MERKLE_TREE_HEIGHT = 8; // Max 2^32 users are allowed in chat
 
 // let chatName = "Test Chat";
 let messages: Message[] = []; // Offchain storage to test

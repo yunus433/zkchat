@@ -17,7 +17,7 @@ import {
 import { Message } from './Message';
 import { User } from './User';
 
-const MAX_MERKLE_TREE_HEIGHT = 32;
+const MAX_MERKLE_TREE_HEIGHT = 8;
 const DEFAULT_USERNAME = "DEFAULT_USERNAME";
 
 export class MerkleWitnessClass extends MerkleWitness(MAX_MERKLE_TREE_HEIGHT) {};
@@ -33,8 +33,6 @@ export class Chat extends SmartContract {
   @state(Field) users = State<Field>();
   @state(Field) messagesHash = State<Field>(); 
   @state(Field) messagesAccumulator = State<Field>();
-
-  chatName: string;
 
   reducer = Reducer({ actionType: Message });
 
@@ -87,7 +85,7 @@ export class Chat extends SmartContract {
     this.users.assertEquals(this.users.get());
     path.calculateRoot(user.hash()).assertEquals(this.users.get());
 
-    message.username.assertEquals(username);
+    message.username.assertEquals(Poseidon.hash(username.toFields()));
 
     this.reducer.dispatch(message);
   };

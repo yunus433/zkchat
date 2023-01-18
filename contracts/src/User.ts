@@ -11,7 +11,7 @@ const DEFAULT_USERNAME = "DEFAULT_USERNAME";
 
 export class User extends CircuitValue {
   @prop key: PublicKey;
-  @prop username: CircuitString;
+  @prop username: Field;
 
   constructor(
     key: PublicKey,
@@ -19,7 +19,7 @@ export class User extends CircuitValue {
   ) {
     super(key, username);
     this.key = key;
-    this.username = username;
+    this.username = Poseidon.hash(username.toFields());
   }
 
   hash(): Field {
@@ -29,7 +29,7 @@ export class User extends CircuitValue {
   setUsername(
     username: CircuitString
   ): User {
-    this.username.assertEquals(CircuitString.fromString(DEFAULT_USERNAME));
+    this.username.assertEquals(Poseidon.hash(CircuitString.fromString(DEFAULT_USERNAME).toFields()));
 
     return new User(this.key, username);
   }

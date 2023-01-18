@@ -1,13 +1,15 @@
 :root {
   --background-color: rgb(6, 6, 22);
   --second-background-color: rgb(15, 15, 33);
+  --third-background-color: rgb(10, 10, 26);
   --main-color: rgb(107, 92, 173);
   --second-color: rgb(90, 178, 173);
   --text-color: rgb(236, 236, 236);
-  --placeholder-color: rgb(148, 148, 148);
+  --placeholder-color: rgba(224, 224, 224, 0.7);
   --border-color: rgb(212, 212, 212);
   --hover-color: rgb(0, 0, 15);
 
+  --header-height: 70px;
   --navbar-width: 300px;
   --each-navbar-chat-height: 80px;
   --navbar-button-width: 110px;
@@ -26,6 +28,10 @@ body {
   margin: 0;
   font-family: -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Oxygen,
     Ubuntu, Cantarell, Fira Sans, Droid Sans, Helvetica Neue, sans-serif;
+}
+
+h1, h2, h3, h4, h5, h6, p {
+  margin: 0;
 }
 
 a {

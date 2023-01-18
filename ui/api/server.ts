@@ -57,7 +57,18 @@ export const requestToDatabase = (req: {
     data.chats.push(req.body.new_chat);
 
     fs.writeFileSync('./database.json', JSON.stringify(data));
+    return callback(null);
+  } else if (req.type == 'update_chat') {
+    if (!req.body.chat_id || !req.body.new_chat || req.body.new_chat.address != req.body.chat_id)
+      return callback('bad_request');
 
+    const chatIndex = data.chats.findIndex(each => each.address == req.body.chat_id);
+
+    if (chatIndex < 0) return callback('bad_request');
+
+    data.chats[chatIndex] = req.body.new_chat;
+
+    fs.writeFileSync('./database.json', JSON.stringify(data));
     return callback(null);
   } else if (req.type == 'get_messages') {
     if (!req.body.chat_id)

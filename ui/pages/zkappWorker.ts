@@ -14,12 +14,8 @@ type Transaction = Awaited<ReturnType<typeof Mina.transaction>>;
 
 import type { Chat } from '../../contracts/src/Chat';
 
-import { MerkleWitnessClass }  from '../../contracts/build/src/Chat.js';
-import { User }  from '../../contracts/build/src/User.js';
-import { Message }  from '../../contracts/build/src/Message.js';
-
 const DEFAULT_USERNAME = "DEFAULT_USERNAME";
-const MAX_MERKLE_TREE_HEIGHT = 32; // Max 2^32 users are allowed
+const MAX_MERKLE_TREE_HEIGHT = 8; // Max 2^8 users are allowed
 
 const state = {
   Chat: null as null | typeof Chat,
@@ -45,7 +41,9 @@ const functions = {
     state.Chat = Chat;
   },
   compileContract: async (args: {}) => {
+    console.log("here");
     await state.Chat!.compile();
+    console.log("compiled");
   },
   fetchAccount: async (args: { publicKey58: string }) => {
     const publicKey = PublicKey.fromBase58(args.publicKey58);
@@ -61,6 +59,7 @@ const functions = {
     chatName: string,
     users: PublicKey[]
   }) => {
+    const { User } = await import ('../../contracts/build/src/User.js');
     const feePayerKey = PrivateKey.fromBase58(args.feePayerPrivateKey58);
 
     const usersTree = new MerkleTree(MAX_MERKLE_TREE_HEIGHT);
@@ -90,6 +89,8 @@ const functions = {
     users: Field[], // List of User hashes. Fetch from database
     index: number // Index of user in users hash array
   }) => {
+    const { MerkleWitnessClass } = await import ('../../contracts/build/src/Chat.js');
+
     const feePayerKey = PrivateKey.fromBase58(args.feePayerPrivateKey58);
 
     const usersTree = new MerkleTree(MAX_MERKLE_TREE_HEIGHT);
@@ -124,6 +125,9 @@ const functions = {
     index: number, // Index of user in users hash array
     message: string
   }) => {
+    const { MerkleWitnessClass } = await import ('../../contracts/build/src/Chat.js');
+    const { Message } = await import ('../../contracts/build/src/Message.js');
+
     const feePayerKey = PrivateKey.fromBase58(args.feePayerPrivateKey58);
 
     const usersTree = new MerkleTree(MAX_MERKLE_TREE_HEIGHT);
@@ -162,6 +166,8 @@ const functions = {
     users: Field[], // List of User hashes. Fetch from database
     index: number // Index of user in users hash array
   }) => {
+    const { MerkleWitnessClass } = await import ('../../contracts/build/src/Chat.js');
+    
     const feePayerKey = PrivateKey.fromBase58(args.feePayerPrivateKey58);
 
     const usersTree = new MerkleTree(MAX_MERKLE_TREE_HEIGHT);
